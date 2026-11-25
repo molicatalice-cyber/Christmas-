@@ -1,1 +1,3 @@
 print/cover/
+print/out/*.html
+print/out/*.png
