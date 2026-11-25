@@ -1,5 +1,7 @@
 """產生列印用 HTML：QR 卡（厚紙 A4）與裝盒對照表。再用 print/to_pdf.js 轉成 PDF。"""
-import segno, io, os
+import segno, io, os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from small_cards import small_cards
 BASE = "https://molicatalice-cyber.github.io/Christmas-/"
 HERE = os.path.dirname(os.path.abspath(__file__))
 RED, GREEN, INK, CREAM, GOLD = "#a34245", "#4f7f5c", "#5a1a20", "#fbefe6", "#e9bf4f"
@@ -14,16 +16,16 @@ def qr(slug):
 QR_CARDS = [
     (1, "song", "十二月的背景音樂"), (4, "luck", "刮刮樂"), (7, "red", "找找看"),
     (9, "quiz", "聖誕冷知識"), (13, "tree", "來佈置聖誕樹"), (17, "listen", "三十秒"),
-    (20, "catch", "接禮物"), (24, "xmas", "聖誕快樂"),
+    (20, "catch", "接禮物"), (22, "candle", "冬至的燭光"), (24, "xmas", "聖誕快樂"),
 ]
 # 每一格放什麼
 DAYS = {
     1: ("QR", "歌單"), 2: ("糖", "維生素C糖"), 3: ("糖", "GODIVA\n（12/19 到期那顆）"), 4: ("QR", "刮刮樂"),
-    5: ("糖", "Hi-Chew"), 6: ("卡", "遊戲卡 A"), 7: ("QR", "找找看"), 8: ("糖", "鹽烤椰子太妃"),
-    9: ("QR", "聖誕冷知識"), 10: ("糖", "金莎"), 11: ("卡", "食譜卡"), 12: ("糖", "香料太妃"),
+    5: ("糖", "Hi-Chew"), 6: ("卡", "迷宮卡"), 7: ("QR", "找找看"), 8: ("糖", "鹽烤椰子太妃"),
+    9: ("QR", "聖誕冷知識"), 10: ("糖", "金莎"), 11: ("卡", "食譜卡（熱蘋果汁）"), 12: ("糖", "香料太妃"),
     13: ("QR", "佈置聖誕樹"), 14: ("糖", "葡萄軟糖"), 15: ("物", "維尼吊飾"), 16: ("糖", "薑糖\n＋一顆別的糖"),
-    17: ("QR", "三十秒"), 18: ("糖", "Andes 薄荷巧克力"), 19: ("卡", "遊戲卡 B"), 20: ("QR", "接禮物"),
-    21: ("糖", "蘋果薑糖\n＋一顆別的糖"), 22: ("物", "蜂蠟蠟燭\n＋冬至摺卡"), 23: ("糖", "GODIVA\n（超商那顆）"),
+    17: ("QR", "三十秒"), 18: ("糖", "Andes 薄荷巧克力"), 19: ("卡", "找字卡"), 20: ("QR", "接禮物"),
+    21: ("糖", "蘋果薑糖\n＋一顆別的糖"), 22: ("物", "蜂蠟蠟燭\n＋QR 卡（22）"), 23: ("糖", "GODIVA\n（超商那顆）"),
     24: ("QR", "聖誕快樂\n＋手寫紙條"),
 }
 # 封面上數字的位置（正面看）
@@ -42,7 +44,7 @@ body {{ margin: 0; font-family: H, sans-serif; color: {INK}; -webkit-print-color
 
 def qr_sheet():
     css = f"""
-.grid {{ position: absolute; left: 30mm; top: 40mm; width: 150mm; display: grid; grid-template-columns: repeat(3, 50mm); grid-auto-rows: 50mm; }}
+.grid {{ position: absolute; left: 30mm; top: 60mm; width: 150mm; display: grid; grid-template-columns: repeat(3, 50mm); grid-auto-rows: 50mm; }}
 .card {{ outline: .2mm dashed #bbb; background: {CREAM}; position: relative; }}
 .frame {{ position: absolute; inset: 2.2mm; border: .7mm solid var(--c); border-radius: 3.5mm; }}
 .num {{ position: absolute; top: -.2mm; left: -.2mm; min-width: 9.5mm; height: 9.5mm; padding: 0 1.5mm; border-radius: 3mm 0 3mm 0; background: var(--c); color: {CREAM}; font-size: 15pt; line-height: 9.5mm; text-align: center; }}
@@ -64,14 +66,8 @@ def qr_sheet():
     for i, (d, slug, title) in enumerate(QR_CARDS):
         c = RED if i % 2 == 0 else GREEN
         cards += f'<div class="card" style="--c:{c}"><div class="frame"><div class="num">{d}</div><div class="star">✦</div></div><div class="qr">{qr(slug)}</div><div class="t">{title}</div></div>'
-    cards += '<div class="card" style="outline:none;background:none"></div>'
-    cards += f"""<div class="card wide" style="--c:{RED}">
-<div class="half l"><p class="pray">願這一小盞火<br>陪最長的夜坐一會兒<br><br>願走了一整年的身體<br>今晚睡得很沉<br><br>願光一天一天回來的路上<br>我們都平安</p></div>
-<div class="half r"><h3>冬至</h3><p>一年裡夜最長的一天。<br>從明天起，白天會一點一點長回來。</p>
-<p style="margin-top:1.6mm;color:#8a5a5e">蜂蠟蠟燭｜第一次請點到表面整圈融化；離開前記得熄掉。</p>
-<div class="ql">掃這裡<br>我唸給你聽 →</div><div class="q">{qr("candle")}</div></div></div>"""
     return HEAD + css + f"""</style></head><body><div class="page">
-<div class="note">QR 卡｜厚紙 A4，請用「實際大小 / 100%」列印｜沿虛線裁切，每張 5 × 5 cm；最下面那張 10 × 5 cm，字朝內對摺</div>
+<div class="note">QR 卡｜厚紙 A4，請用「實際大小 / 100%」列印｜沿虛線裁切，每張 5 × 5 cm，一張 A4 是一盒的份量</div>
 <div class="grid">{cards}</div><div class="ruler">10 cm</div></div></body></html>"""
 
 def guide():
@@ -106,3 +102,4 @@ td {{ padding: .9mm 3mm; border-bottom: .2mm solid #ddd; white-space: nowrap; }}
 os.makedirs(f"{HERE}/out", exist_ok=True)
 open(f"{HERE}/out/qr_cards.html", "w", encoding="utf-8").write(qr_sheet())
 open(f"{HERE}/out/packing_guide.html", "w", encoding="utf-8").write(guide())
+open(f"{HERE}/out/small_cards.html", "w", encoding="utf-8").write(small_cards(HEAD))
