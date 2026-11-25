@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>聖誕刮刮樂</title>
+<style>
+  :root { --red:#b0363f; --deep:#85161f; --cream:#fbefe6; --green:#3f6b4a; --gold:#ffd664; --ink:#5a1a20; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; min-height:100%; }
+  body {
+    background:var(--red); color:var(--cream);
+    font-family:"Hiragino Maru Gothic ProN","PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:100dvh; padding:24px 16px; text-align:center; overflow-x:hidden;
+  }
+  h1 { font-size:26px; letter-spacing:.2em; margin:0 0 6px; font-weight:700; }
+  .sub { font-size:14px; opacity:.85; margin:0 0 22px; }
+  .card {
+    position:relative; width:min(86vw,340px); aspect-ratio:1/1; border-radius:22px;
+    background:var(--cream); color:var(--ink);
+    box-shadow:0 0 0 4px var(--cream), 0 0 0 7px var(--green), 0 14px 30px rgba(0,0,0,.25);
+    overflow:hidden; touch-action:none; user-select:none; -webkit-user-select:none;
+  }
+  .result { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:22px; }
+  .luck { font-size:15px; letter-spacing:.3em; color:var(--cream); background:var(--red); padding:4px 14px 4px 18px; border-radius:99px; }
+  .emoji { font-size:54px; margin:12px 0 8px; line-height:1; }
+  .text { font-size:19px; line-height:1.6; font-weight:700; text-wrap:balance; }
+  canvas { position:absolute; inset:0; width:100%; height:100%; transition:opacity .6s; }
+  canvas.done { opacity:0; pointer-events:none; }
+  button {
+    margin-top:26px; font:inherit; font-size:15px; color:var(--cream); background:transparent;
+    border:2px solid var(--cream); border-radius:99px; padding:9px 22px; cursor:pointer;
+    opacity:0; pointer-events:none; transition:opacity .4s;
+  }
+  button.show { opacity:1; pointer-events:auto; }
+  button:active { background:rgba(255,255,255,.15); }
+  .snow { position:fixed; top:-20px; color:#fff; opacity:.7; pointer-events:none; animation:fall linear forwards; }
+  @keyframes fall { to { transform:translateY(110vh) rotate(360deg); } }
+  @media (prefers-reduced-motion:reduce){ .snow{display:none} }
+</style>
+</head>
+<body>
+  <h1>聖誕刮刮樂</h1>
+  <p class="sub">用手指刮開，看看今天的聖誕籤</p>
+  <div class="card" id="card">
+    <div class="result">
+      <div class="luck" id="luck"></div>
+      <div class="emoji" id="emoji"></div>
+      <div class="text" id="text"></div>
+    </div>
+    <canvas id="cv" aria-label="刮刮樂塗層"></canvas>
+  </div>
+  <button id="again">再刮一張</button>
+
+<script>
+const FORTUNES = [
+  ["大吉","☕","今天喝到的熱飲，\n會剛好是最順口的溫度。"],
+  ["大吉","🧦","今天穿的襪子會特別暖。\n腳暖了，什麼都好說。"],
+  ["大吉","🎁","近期會收到一個\n剛好用得上的東西。"],
+  ["中吉","🍊","今天適合吃橘子。\n剝開的那一下，整個房間都是冬天。"],
+  ["中吉","🛋️","今晚的棉被會特別好睡。\n請放心賴床五分鐘。"],
+  ["中吉","🎶","路上會聽到一首聖誕歌，\n然後它會在你腦中住三天。"],
+  ["中吉","🚦","今天過馬路，\n綠燈會多等你一下。"],
+  ["小吉","🍪","今天吃甜的不算數。\n（十二月的熱量由聖誕老人吸收）"],
+  ["小吉","🐈","今天遇到的小動物\n會多看你一眼。"],
+  ["小吉","📦","等很久的那個包裹，\n正在路上了。"],
+  ["小吉","🌙","今晚抬頭看一下天空。\n不一定有星星，但脖子會舒服一點。"],
+  ["吉","🦌","麋鹿說：\n慢慢來，雪橇也是一步一步拉的。"],
+  ["吉","🕯️","今天有一件小事會順順地完成。\n就是那件。"],
+  ["吉","🍲","今天適合吃熱熱的東西。\n其實每天都適合。"],
+];
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const card = document.getElementById('card'), again = document.getElementById('again');
+let last = -1, revealed = false, drawing = false, prev = null, moves = 0;
+
+function pick() {
+  let i; do { i = Math.floor(Math.random() * FORTUNES.length); } while (i === last);
+  last = i;
+  const [luck, emoji, text] = FORTUNES[i];
+  document.getElementById('luck').textContent = luck;
+  document.getElementById('emoji').textContent = emoji;
+  document.getElementById('text').innerText = text;
+}
+function paint() {
+  const r = card.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = r.width * d; cv.height = r.height * d;
+  ctx.setTransform(d, 0, 0, d, 0, 0);
+  ctx.globalCompositeOperation = 'source-over';
+  const g = ctx.createLinearGradient(0, 0, r.width, r.height);
+  g.addColorStop(0, '#e9c46a'); g.addColorStop(.5, '#ffe9a8'); g.addColorStop(1, '#d9a94a');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, r.width, r.height);
+  ctx.fillStyle = 'rgba(133,22,31,.16)'; ctx.font = '20px serif'; ctx.textAlign = 'center';
+  for (let y = 26, row = 0; y < r.height + 20; y += 44, row++)
+    for (let x = (row % 2 ? 22 : 0); x < r.width + 20; x += 52) ctx.fillText(row % 2 ? '✦' : '❄', x + 14, y);
+  ctx.fillStyle = '#85161f'; ctx.font = '700 22px "PingFang TC","Noto Sans TC",sans-serif';
+  ctx.fillText('刮 這 裡', r.width / 2, r.height / 2 + 8);
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.lineCap = ctx.lineJoin = 'round'; ctx.lineWidth = 46;
+}
+function pos(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+function scratch(p) {
+  ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+  ctx.beginPath(); ctx.arc(p.x, p.y, 23, 0, Math.PI * 2); ctx.fill();
+  prev = p;
+  if (++moves % 8 === 0) check();
+}
+function check() {
+  if (revealed) return;
+  const s = 16, w = cv.width, h = cv.height, data = ctx.getImageData(0, 0, w, h).data;
+  let clear = 0, total = 0;
+  for (let y = 0; y < h; y += s) for (let x = 0; x < w; x += s) { total++; if (data[(y * w + x) * 4 + 3] < 40) clear++; }
+  if (clear / total > 0.5) reveal();
+}
+function reveal() {
+  revealed = true; cv.classList.add('done'); again.classList.add('show');
+  for (let i = 0; i < 26; i++) setTimeout(flake, i * 90);
+}
+function flake() {
+  const s = document.createElement('span'); s.className = 'snow'; s.textContent = '❄';
+  s.style.left = Math.random() * 100 + 'vw'; s.style.fontSize = 10 + Math.random() * 16 + 'px';
+  s.style.animationDuration = 3 + Math.random() * 3 + 's';
+  document.body.appendChild(s); s.addEventListener('animationend', () => s.remove());
+}
+cv.addEventListener('pointerdown', e => { drawing = true; prev = pos(e); cv.setPointerCapture(e.pointerId); scratch(prev); });
+cv.addEventListener('pointermove', e => { if (drawing) scratch(pos(e)); });
+['pointerup', 'pointercancel'].forEach(t => cv.addEventListener(t, () => { drawing = false; check(); }));
+again.addEventListener('click', () => { revealed = false; moves = 0; again.classList.remove('show'); pick(); paint(); cv.classList.remove('done'); });
+pick(); paint();
+</script>
+</body>
+</html>
